@@ -1,0 +1,20 @@
+[Unit]
+Description=Vault framework
+Wants=basic.target
+After=basic.target network.target
+
+[Service]
+EnvironmentFile=-/etc/sysconfig/vault
+ExecStart=/usr/local/bin/vault server -config=/etc/vault/
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+
+# Restrict process
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

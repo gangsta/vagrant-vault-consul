@@ -1,0 +1,30 @@
+---
+# file: handlers/main.yml
+#
+- name: restart vault
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: vault
+  when: use_service|bool
+
+- name: start vault
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: vault
+  when: use_service|bool
+
+- name: restart consul
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: consul
+  when: use_service|bool
+
+- name: start consul
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: consul
+  when: use_service|bool

@@ -1,0 +1,6 @@
+---
+
+#
+# variables needed to be defined in user's playbook
+#
+use_service: true

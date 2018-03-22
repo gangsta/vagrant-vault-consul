@@ -1,0 +1,97 @@
+---
+# file: tasks/main.yml
+# Top-level installer for Prometheus.
+#
+# @see https://github.com/prometheus/prometheus
+# @see http://prometheus.io/docs/introduction/getting_started/
+#
+
+- name: create groups
+  group: 
+    name: "{{ item.name }}"
+    state: present
+  with_items:
+    - "{{ users }}"
+
+- name: create users
+  user:
+    name: "{{ item.name }}"
+    group: "{{ item.name }}"
+    createhome: no
+    shell: /sbin/shell
+    system: yes
+    state: present
+  with_items:
+    - "{{ users }}"
+
+- name: Download file with check (sha256)
+  get_url:
+    url: https://releases.hashicorp.com/consul/1.0.6/consul_1.0.6_linux_amd64.zip
+    dest: /opt/consul_1.0.6_linux_amd64.zip
+    checksum: sha256:bcc504f658cef2944d1cd703eda90045e084a15752d23c038400cf98c716ea01
+    mode: 0755
+
+- name: Download file with check (sha256)
+  get_url:
+    url: https://releases.hashicorp.com/vault/0.9.6/vault_0.9.6_linux_amd64.zip
+    dest: /opt/vault_0.9.6_linux_amd64.zip
+    checksum: sha256:3f1f346ff7aaf367fed6a3e83e5a07fdc032f22860585e36c3674f9ead08dbaf
+    mode: 0755
+
+- name: install unzip package
+  package:
+    name: unzip
+    state: latest
+
+- name: Unarchive Vault
+  unarchive:
+    src: /opt/vault_0.9.6_linux_amd64.zip
+    dest: /usr/local/bin
+    copy: no
+
+- name: Unarchive Consul
+  unarchive:
+    src: /opt/consul_1.0.6_linux_amd64.zip
+    dest: /usr/local/bin
+    copy: no
+
+- name: mkdir for general cases
+  file:
+    path: "/etc/{{ item.name }}"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0755"
+  with_items:
+    - "{{ users }}"
+
+- name: copy configs for Consul and Vault
+  template: 
+    src: "{{ item.s }}"
+    dest: "{{ item.d }}"
+    owner: "{{ item.o }}"
+    group: "{{ item.o }}"
+  with_items:
+    - s: '../templates/acl.j2'
+      d: '/etc/consul/acl.hcl'
+      o: 'consul'
+    - s: '../templates/consulconf.j2'
+      d: '/etc/consul/consul.hcl'
+      o: 'consul'
+    - s: '../templates/vaultconf.j2'
+      d: '/etc/vault/vault.hcl'
+      o: 'vault'
+
+- name: copy INIT script for Consul
+  template: 
+    src: "../templates/consul.j2"
+    dest: "/etc/systemd/system/consul.service"
+#  notify:
+#    - start consul
+
+- name: copy INIT script for Vault
+  template: 
+    src: "../templates/vault.j2"
+    dest: "/etc/systemd/system/vault.service"
+#  notify:
+#    - start vault

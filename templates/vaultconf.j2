@@ -1,0 +1,13 @@
+backend "consul" {
+  address = "127.0.0.1:8500"
+  advertise_addr = "http://{{ ansible_eth1.ipv4.address }}:8200"
+  path = "vault/"
+  scheme = "http"
+  datacenter = "malmo"
+  token = "398073a8-5091-4d9c-871a-bbbeb030d1f6"
+}
+
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = 1
+}

@@ -1,0 +1,20 @@
+{ 
+  "data_dir": "/opt/consul/data",
+  "ui": true,
+  "client_addr": "0.0.0.0",
+  "advertise_addr": "{{ ansible_eth1.ipv4.address }}",
+  "bootstrap_expect": 2,
+  "server": true,
+  "datacenter": "malmo",
+  "encrypt": "bWFsbW92YXVsdGNvbnN1bA==",
+  "retry_join": [
+    "[192.168.33.71]",
+    "[192.168.33.72]",
+    "[192.168.33.73]"
+  ],
+  "retry_interval": "10s",
+  "retry_max": 100,
+  "skip_leave_on_interrupt": true,
+  "leave_on_terminate": false,
+  "rejoin_after_leave": true
+}
