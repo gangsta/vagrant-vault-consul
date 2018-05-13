@@ -1,4 +1,4 @@
-/.vagrant
+/.vagrant/*
 /roles
 /result-*
 /*.retry
