@@ -1,0 +1,14 @@
+- hosts: all
+  become: True
+  tasks:
+    - include: 'tasks/pgsql.yml'
+  handlers:
+    - include: 'handlers/main.yml'
+  vars_files:
+    - 'defaults/main.yml'
+
+  vars:
+
+    users:
+      - name: vault
+      - name: consul

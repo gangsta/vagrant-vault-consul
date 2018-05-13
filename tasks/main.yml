@@ -24,18 +24,18 @@
   with_items:
     - "{{ users }}"
 
-- name: Download file with check (sha256)
+- name: Download Consul with check (sha256)
   get_url:
     url: https://releases.hashicorp.com/consul/1.0.6/consul_1.0.6_linux_amd64.zip
     dest: /opt/consul_1.0.6_linux_amd64.zip
     checksum: sha256:bcc504f658cef2944d1cd703eda90045e084a15752d23c038400cf98c716ea01
     mode: 0755
 
-- name: Download file with check (sha256)
+- name: Download Vault with check (sha256)
   get_url:
-    url: https://releases.hashicorp.com/vault/0.9.6/vault_0.9.6_linux_amd64.zip
-    dest: /opt/vault_0.9.6_linux_amd64.zip
-    checksum: sha256:3f1f346ff7aaf367fed6a3e83e5a07fdc032f22860585e36c3674f9ead08dbaf
+    url: https://releases.hashicorp.com/vault/0.10.0/vault_0.10.0_linux_amd64.zip
+    dest: /opt/vault_0.10.0_linux_amd64.zip
+    checksum: sha256:a6b4b6db132f3bbe6fbb77f76228ffa45bd55a5a1ab83ff043c2c665c3f5a744
     mode: 0755
 
 - name: install unzip package
@@ -45,7 +45,7 @@
 
 - name: Unarchive Vault
   unarchive:
-    src: /opt/vault_0.9.6_linux_amd64.zip
+    src: /opt/vault_0.10.0_linux_amd64.zip
     dest: /usr/local/bin
     copy: no
 
@@ -72,9 +72,9 @@
     owner: "{{ item.o }}"
     group: "{{ item.o }}"
   with_items:
-    - s: '../templates/acl.j2'
-      d: '/etc/consul/acl.hcl'
-      o: 'consul'
+#    - s: '../templates/acl.j2'
+#      d: '/etc/consul/acl.hcl'
+#      o: 'consul'
     - s: '../templates/consulconf.j2'
       d: '/etc/consul/consul.hcl'
       o: 'consul'
@@ -86,12 +86,12 @@
   template: 
     src: "../templates/consul.j2"
     dest: "/etc/systemd/system/consul.service"
-#  notify:
-#    - start consul
+  notify:
+    - start consul
 
 - name: copy INIT script for Vault
   template: 
     src: "../templates/vault.j2"
     dest: "/etc/systemd/system/vault.service"
-#  notify:
-#    - start vault
+  notify:
+    - start vault

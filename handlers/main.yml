@@ -28,3 +28,11 @@
     daemon_reload: yes
     name: consul
   when: use_service|bool
+
+- name: start postgres
+  systemd:
+    state: started
+    enabled: yes
+    daemon_reload: yes
+    name: postgresql-9.6
+  when: use_service|bool

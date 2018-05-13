@@ -17,23 +17,35 @@ Vagrant.configure(2) do |config|
     config.vm.define "vault#{d}" do |node|
       node.vm.network "private_network", ip: "192.168.33.7#{d}" # 10.7.0.21, 10.7.0.22, 10.7.0.23
       node.vm.hostname = "vault#{d}"
-      config.vm.provider "virtualbox" do |v|
-        v.memory = 1024
+      node.vm.provider "virtualbox" do |v|
+        v.memory = 512
         v.cpus = 1
       end
-      config.vm.provision "ansible" do |ansible|
+      node.vm.provision "ansible" do |ansible|
         ansible.playbook = "test.yml"
         ansible.verbose = ""
       end
     end
   end
 
-  config.vm.define "vault-demo" do |node|
-    node.vm.hostname = "vault-demo"
-    node.vm.network "private_network", ip: "192.168.33.60"
-    config.vm.provider "virtualbox" do |v|
-      v.memory = 1024
+  config.vm.define "vault-demo" do |extra|
+    extra.vm.hostname = "vault-demo"
+    extra.vm.network "private_network", ip: "192.168.33.60"
+    extra.vm.provider "virtualbox" do |v|
+      v.memory = 512
       v.cpus = 1
+    end
+  end
+  config.vm.define "postgres" do |db|
+    db.vm.hostname = "postgres"
+    db.vm.network "private_network", ip: "192.168.33.62"
+    db.vm.provider "virtualbox" do |vp|
+      vp.memory = 1024
+      vp.cpus = 1
+    end
+    db.vm.provision "ansible" do |dbpg|
+      dbpg.playbook = "pgsql.yml"
+      dbpg.verbose = ""
     end
   end
 end

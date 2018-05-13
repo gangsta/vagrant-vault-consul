@@ -14,11 +14,10 @@ Unseal Key 5: lljRDlBdwuaH3kXIOmBX0wxLfOJPknB/NqvUTX7Jc8ue
 Initial Root Token: 039c9534-089d-e353-0062-1ee4c65ea3df 
 ```
 
-
 ```vim
 yum install wget unzip epel-release -y
 yum install jq -y
-wget https://releases.hashicorp.com/vault/0.9.5/vault_0.9.5_linux_amd64.zip
+wget https://releases.hashicorp.com/vault/0.10.0/vault_0.10.0_linux_amd64.zip
 unzip vault_*
 cp vault /usr/local/bin/
 vault
@@ -29,8 +28,8 @@ export VAULT_ADDR='http://127.0.0.1:8200'
 * copy your unseal key from
 
 ```
-Unseal Key: rLZx8NjL149ItDil35PRTShgWpzIOVHyzS5K8jlYJAg=
-Root Token: 6bb443f0-3d65-dbfc-f31d-3f8586de62d6
+Unseal Key: R/NKw0NHknSol/gP6cdPOPEOb+9aeR7PJ94V6f0WQGo=
+Root Token: f70bf6c4-739a-c5b7-76ab-a4859cf3f6e6
 ```
 * unseal vault
 
@@ -42,29 +41,30 @@ Unseal Key (will be hidden): "here your unseal key"
 * create your first key, read, delete
 
 ```jinja2
-$ vault write secret/hello value=world
+$ vault kv put secret/hello foo=world
 Success! Data written to: secret/hello
 
-$ vault write secret/hello value=world excited=yes
+$ vault kv put secret/hello foo=world excited=yes
 Success! Data written to: secret/hello
 
-$ vault read secret/hello
+$ vault kv get secret/hello
 Key                 Value
 ---                 -----
 refresh_interval    768h
 excited             yes
 value               world
 
-$ vault read -format=json secret/hello | jq -r .data.value
+$ vault kv get -format=json secret/hello | jq -r .data.data.foo
 world
 
-$ vault delete secret/hello
+
+$ vault kv delete secret/hello
 Success! Data deleted (if it existed) at: secret/hello
 ```
 
 * create your first key with API
 
-```API
+```Curl
 export VAULT_TOKEN=6fa4128e-8bd2-fd02-0ea8-a5e020d9b766  #should be root token
 
 curl \
@@ -91,6 +91,7 @@ curl \
 ```
 ## Vault Ui
 
+* Not actual for Vault > 0.10.0
 * install docker [here](https://gist.github.com/gangsta/ae8226f3eaa074e3232c992d85dce285)
 
 ```docker
@@ -100,18 +101,18 @@ docker run -d \
 --name vault-ui \
 djenriquez/vault-ui
 ```
-* policy for user
+## Vault User
 
 ```vault
-echo 'path "secret/*" {
-  capabilities = ["create"]
+vault policy write admins -<<EOF
+path "secret/*" {
+  capabilities = ["read"]
 }
 
-path "secret/foo" {
-  capabilities = ["read"]
-}' > my-policy.hcl
-
-vault policy fmt my-policy.hcl
+path "secret/foo/*" {
+  capabilities = ["create", "read", "list"]
+}
+EOF
 ```
 
 ```vault
@@ -288,4 +289,110 @@ vault write consul/roles/readonly policy=$(base64 <<< 'key "" { policy = "read" 
 
 
 vault read consul/creds/readonly
+```
+# Ha Vault
+
+```vault
+export VAULT_ADDR='http://127.0.0.1:8200'
+vault operator init
+
+vault operator unseal
+vault status
+
+vault login
+Token (will be hidden): $roottoken
+```
+
+# Dynamic Secrets
+
+* PostgreSQL Prepare
+
+```
+createdb foocafe
+psql foocafe
+CREATE ROLE vault_user WITH SUPERUSER LOGIN CREATEROLE;
+CREATE TABLE afterwork (id SERIAL PRIMARY KEY, title TEXT, year INTEGER);
+INSERT INTO afterwork (title, year) VALUES ('HashiCorp Skane', 2018);
+```
+```
+echo 'local   all             all                                     md5
+# IPv4 local connections:
+host    all             all             192.168.33.60/32        trust
+host    all             all             192.168.33.71/32        trust
+host    all             all             192.168.33.72/32        trust
+host    all             all             192.168.33.73/32        trust
+# IPv6 local connections:
+host    all             all             ::1/128                 ident' > /var/lib/pgsql/9.6/data/pg_hba.conf
+
+echo "listen_addresses = '0.0.0.0'" >> /var/lib/pgsql/9.6/data/postgresql.conf
+
+systemctl restart postgresql-9.6
+```
+
+* Vault
+
+```
+export VAULT_ADDR='http://127.0.0.1:8200'
+vault secrets enable database
+
+vault write database/config/postgresql_foocafe \
+    plugin_name=postgresql-database-plugin \
+    allowed_roles="admin,curator,member" \
+    connection_url="postgresql://vault_user@192.168.33.62:5432/foocafe?sslmode=disable"
+
+vault write database/roles/admin \
+    db_name=postgresql_foocafe \
+    creation_statements="CREATE ROLE \"{{name}}\"  WITH SUPERUSER LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';" \
+    revocation_sql="SELECT revoke_access('{{name}}'); DROP user \"{{name}}\";"  \
+    default_ttl="60s" \
+    max_ttl="300s"
+
+vault write database/roles/curator  \
+    db_name=postgresql_foocafe \
+    creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+    GRANT USAGE, SELECT ON SEQUENCE afterwork_id_seq TO \"{{name}}\"; \
+    GRANT ALL PRIVILEGES ON TABLE "afterwork" TO \"{{name}}\"; \
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+    revocation_sql="SELECT revoke_access('{{name}}'); DROP user \"{{name}}\";"  \
+    default_ttl="60s" \
+    max_ttl="300s"
+
+vault write database/roles/member \
+    db_name=postgresql_foocafe \
+    creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+    revocation_sql="SELECT revoke_access('{{name}}'); DROP user \"{{name}}\";"  \
+    default_ttl="1h" \
+    max_ttl="24h"
+
+vault read database/creds/admin
+
+vault read database/creds/curator
+
+vault read database/creds/member
+```
+
+* psql foocafe --username <Insert Generated Username> --password
+
+```
+ADMIN
+
+CREATE TABLE speaker (id SERIAL PRIMARY KEY, first_name TEXT, last_name TEXT);
+INSERT INTO speaker (first_name, last_name) VALUES ('Frank', 'Stella');
+INSERT INTO speaker (first_name, last_name) VALUES ('Richard', 'Serra');
+INSERT INTO afterwork (title, year) VALUES ('HA Secret Server', 2020);
+
+CURATOR
+
+INSERT INTO afterwork (title, year) VALUES ('Foocafe', 2017);
+INSERT INTO afterwork (title, year) VALUES ('Foocafe', 2017);
+INSERT INTO speaker (first_name, last_name) VALUES ('Karen', 'Har-yan');      #should give you error
+
+MEMBER
+
+SELECT * FROM afterwork;
+SELECT * FROM speaker;
+
+INSERT INTO afterwork (title, year) VALUES ('Demo', 2018);
+INSERT INTO speaker (first_name, last_name) VALUES ('Karen', 'Har-yan');
 ```

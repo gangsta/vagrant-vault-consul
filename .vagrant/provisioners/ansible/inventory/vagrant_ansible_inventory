@@ -4,3 +4,4 @@ vault1 ansible_host=127.0.0.1 ansible_port=2222 ansible_user='vagrant' ansible_s
 vault-demo ansible_host=127.0.0.1 ansible_port=2202 ansible_user='vagrant' ansible_ssh_private_key_file='/home/kalinux/.vagrant.d/insecure_private_key'
 vault3 ansible_host=127.0.0.1 ansible_port=2201 ansible_user='vagrant' ansible_ssh_private_key_file='/home/kalinux/.vagrant.d/insecure_private_key'
 vault2 ansible_host=127.0.0.1 ansible_port=2200 ansible_user='vagrant' ansible_ssh_private_key_file='/home/kalinux/.vagrant.d/insecure_private_key'
+postgres ansible_host=127.0.0.1 ansible_port=2203 ansible_user='vagrant' ansible_ssh_private_key_file='/home/kalinux/.vagrant.d/insecure_private_key'
