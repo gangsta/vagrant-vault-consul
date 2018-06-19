@@ -2,3 +2,4 @@
 /roles
 /result-*
 /*.retry
+/test.retry

@@ -17,7 +17,7 @@ Initial Root Token: 039c9534-089d-e353-0062-1ee4c65ea3df
 ```vim
 yum install wget unzip epel-release -y
 yum install jq -y
-wget https://releases.hashicorp.com/vault/0.10.0/vault_0.10.0_linux_amd64.zip
+wget https://releases.hashicorp.com/vault/0.10.2/vault_0.10.2_linux_amd64.zip
 unzip vault_*
 cp vault /usr/local/bin/
 vault
@@ -57,9 +57,30 @@ value               world
 $ vault kv get -format=json secret/hello | jq -r .data.data.foo
 world
 
+$ vault kv put secret/hello foo=new-world excited=yes
+Key              Value
+---              -----
+created_time     2018-06-19T20:51:00.236007976Z
+deletion_time    n/a
+destroyed        false
+version          3
 
+$ vault kv get -version=1 secret/hello
+$ vault kv get -version=3 secret/hello
+
+#Softdelete
 $ vault kv delete secret/hello
 Success! Data deleted (if it existed) at: secret/hello
+
+$ vault kv metadata get secret/hello
+$ vault kv undelete -versions=3 secret/hello
+$ vault kv get -version=3 secret/hello
+
+#Harddelete
+$ vault kv destroy -versions=3 secret/hello
+$ vault kv metadata get secret/hello
+$ vault kv undelete -versions=3 secret/hello
+$ vault kv get -version=3 secret/hello
 ```
 
 * create your first key with API
@@ -93,6 +114,7 @@ curl \
 
 * Not actual for Vault > 0.10.0
 * install docker [here](https://gist.github.com/gangsta/ae8226f3eaa074e3232c992d85dce285)
+* Secrets created using Vault UI are also versioned, CLI can retriev all versions.
 
 ```docker
 docker run -d \
@@ -104,7 +126,7 @@ djenriquez/vault-ui
 ## Vault User
 
 ```vault
-vault policy write admins -<<EOF
+$ vault policy write admins -<<EOF
 path "secret/*" {
   capabilities = ["read"]
 }
@@ -150,25 +172,26 @@ path "auth/token/lookup-accessor/*" {
 }
 EOF
 
-vault policy list
+$ vault policy list
+$ vault policy read admins
 ```
 
 * let's create some user
 
 ```hashi
-vault auth enable userpass
+$ vault auth enable userpass
 
-vault write auth/userpass/users/gangsta \
+$ vault write auth/userpass/users/gangsta \
     password=gangsta \
     policies=admins
 ```
 
 ```
-vault login -no-store -method=userpass \
+$ vault login -no-store -method=userpass \
     username=gangsta \
     password=gangsta
 
-curl \
+$ curl \
     --request POST \
     --data '{"password": "gangsta"}' \
     http://http://192.168.33.60:8200/v1/auth/userpass/login/gangsta
@@ -308,6 +331,7 @@ Token (will be hidden): $roottoken
 * PostgreSQL Prepare
 
 ```
+su postgres
 createdb foocafe
 psql foocafe
 CREATE ROLE vault_user WITH SUPERUSER LOGIN CREATEROLE;
@@ -337,7 +361,7 @@ vault secrets enable database
 
 vault write database/config/postgresql_foocafe \
     plugin_name=postgresql-database-plugin \
-    allowed_roles="admin,curator,member" \
+    allowed_roles="admin,junior,member" \
     connection_url="postgresql://vault_user@192.168.33.62:5432/foocafe?sslmode=disable"
 
 vault write database/roles/admin \
@@ -347,7 +371,7 @@ vault write database/roles/admin \
     default_ttl="60s" \
     max_ttl="300s"
 
-vault write database/roles/curator  \
+vault write database/roles/junior  \
     db_name=postgresql_foocafe \
     creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; \
     GRANT USAGE, SELECT ON SEQUENCE afterwork_id_seq TO \"{{name}}\"; \
@@ -367,12 +391,13 @@ vault write database/roles/member \
 
 vault read database/creds/admin
 
-vault read database/creds/curator
+vault read database/creds/junior
 
 vault read database/creds/member
 ```
 
-* psql foocafe --username <Insert Generated Username> --password
+* psql foocafe --username <Insert Generated Username> --password 
+* `\dg` show database users/roles
 
 ```
 ADMIN
@@ -382,7 +407,7 @@ INSERT INTO speaker (first_name, last_name) VALUES ('Frank', 'Stella');
 INSERT INTO speaker (first_name, last_name) VALUES ('Richard', 'Serra');
 INSERT INTO afterwork (title, year) VALUES ('HA Secret Server', 2020);
 
-CURATOR
+JUNIOR
 
 INSERT INTO afterwork (title, year) VALUES ('Foocafe', 2017);
 INSERT INTO afterwork (title, year) VALUES ('Foocafe', 2017);
