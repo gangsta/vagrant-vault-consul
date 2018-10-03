@@ -324,6 +324,9 @@ vault status
 
 vault login
 Token (will be hidden): $roottoken
+
+curl http://192.168.33.71:8500/v1/health/service/vault | jq -r .
+curl http://192.168.33.71:8500/v1/health/service/consul | jq -r .
 ```
 
 # Dynamic Secrets
